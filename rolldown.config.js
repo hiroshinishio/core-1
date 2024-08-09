@@ -7,7 +7,7 @@ import replace from '@rollup/plugin-replace'
 import pico from 'picocolors'
 import polyfillNode from 'rollup-plugin-polyfill-node'
 import { entries } from './scripts/aliases.js'
-import { inlineEnums, scanEnums } from './scripts/inline-enums.js'
+import { inlineEnums } from './scripts/inline-enums.js'
 import { minify as minifySwc } from '@swc/core'
 
 if (!process.env.TARGET) {
@@ -29,7 +29,6 @@ const pkg = require(resolve(`package.json`))
 const packageOptions = pkg.buildOptions || {}
 const name = packageOptions.filename || path.basename(packageDir)
 
-scanEnums()
 const [enumPlugin, enumDefines] = inlineEnums()
 
 /** @typedef {'cjs' | 'esm-bundler' | 'global' | 'global-runtime' | 'esm-browser' | 'esm-bundler-runtime' | 'esm-browser-runtime'} PackageFormat */
