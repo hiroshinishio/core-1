@@ -331,10 +331,12 @@ function createConfig(format, output, plugins = []) {
       alias: entries,
     },
     plugins: [
+      // @ts-expect-error rollup's Plugin type incompatible w/ rolldown's vendored Plugin type
       enumPlugin,
       ...resolveReplace(),
       ...resolveNodePlugins(),
       ...plugins,
+      patchRolldown(),
     ],
     output,
     onwarn: (msg, warn) => {
@@ -393,4 +395,20 @@ function createMinifiedConfig(/** @type {PackageFormat} */ format) {
       },
     ],
   )
+}
+
+// temporary fix for https://github.com/rolldown/rolldown/issues/1917
+function patchRolldown() {
+  return {
+    name: 'patch',
+    generateBundle(opts, bundle) {
+      const chunk = bundle['compiler-sfc.cjs.js']
+      if (chunk) {
+        chunk.code = chunk.code.replace(
+          'var require_node = __commonJSMin((exports, module) => {});',
+          'var require_node = __commonJSMin((exports, module) => { module.exports = require("node:util").deprecate });',
+        )
+      }
+    },
+  }
 }
