@@ -105,7 +105,7 @@ export default packageConfigs
  *
  * @param {PackageFormat} format
  * @param {import('rolldown').OutputOptions} output
- * @param {ReadonlyArray<import('rolldown').Plugin>} plugins
+ * @param {import('rolldown').Plugin[]} plugins
  * @returns {import('rolldown').RolldownOptions}
  */
 function createConfig(format, output, plugins = []) {
@@ -142,8 +142,12 @@ function createConfig(format, output, plugins = []) {
     output.esModule = true
   }
   output.sourcemap = !!process.env.SOURCE_MAP
+
+  // @ts-expect-error Not supported yet
   output.externalLiveBindings = false
+
   // https://github.com/rollup/rollup/pull/5380
+  // @ts-expect-error Not supported yet
   output.reexportProtoFromExternal = false
 
   if (isGlobalBuild) {
@@ -213,8 +217,12 @@ function createConfig(format, output, plugins = []) {
 
   // esbuild define is a bit strict and only allows literal json or identifiers
   // so we still need replace plugin in some cases
+  /**
+   * @returns {import('rolldown').Plugin[]}
+   */
   function resolveReplace() {
-    const replacements = { ...enumDefines, ...resolveDefine() }
+    /** @type {Record<string, string>} */
+    const replacements = {}
 
     if (isProductionBuild && isBrowserBuild) {
       Object.assign(replacements, {
@@ -242,6 +250,7 @@ function createConfig(format, output, plugins = []) {
     }
 
     if (Object.keys(replacements).length) {
+      // @ts-expect-error Rollup plugin type still incompatible
       return [replace({ values: replacements, preventAssignment: true })]
     } else {
       return []
@@ -258,7 +267,6 @@ function createConfig(format, output, plugins = []) {
 
     // we are bundling forked consolidate.js in compiler-sfc which dynamically
     // requires a ton of template engines which should be ignored.
-    /** @type {ReadonlyArray<string>} */
     let cjsIgnores = []
     if (
       pkg.name === '@vue/compiler-sfc' ||
@@ -281,6 +289,8 @@ function createConfig(format, output, plugins = []) {
         // normal browser builds - non-browser only imports are tree-shaken,
         // they are only listed here to suppress warnings.
         return treeShakenDeps
+      } else {
+        return cjsIgnores
       }
     } else {
       // Node / esm-bundler builds.
@@ -298,13 +308,13 @@ function createConfig(format, output, plugins = []) {
   }
 
   function resolveNodePlugins() {
-    const nodePlugins =
-      (format === 'cjs' && Object.keys(pkg.devDependencies || {}).length) ||
-      packageOptions.enableNonBrowserBranches
-        ? [...(format === 'cjs' ? [] : [polyfillNode()])]
-        : []
-
-    return nodePlugins
+    // TODO
+    // const nodePlugins =
+    //   (format === 'cjs' && Object.keys(pkg.devDependencies || {}).length) ||
+    //   packageOptions.enableNonBrowserBranches
+    //     ? [...(format === 'cjs' ? [] : [polyfillNode()])]
+    //     : []
+    return []
   }
 
   return {
@@ -312,7 +322,11 @@ function createConfig(format, output, plugins = []) {
     // Global and Browser ESM builds inlines everything so that they can be
     // used alone.
     external: resolveExternal(),
-    platform: format === 'cjs' ? 'node' : 'neutral',
+    define: { ...enumDefines, ...resolveDefine() },
+    platform:
+      format === 'cjs' || packageOptions.enableNonBrowserBranches
+        ? 'node'
+        : 'neutral',
     resolve: {
       alias: entries,
     },
@@ -345,7 +359,7 @@ function createMinifiedConfig(/** @type {PackageFormat} */ format) {
   return createConfig(
     format,
     {
-      entryFileNames: outputConfigs[format].entryFileNames.replace(
+      entryFileNames: outputConfigs[format].entryFileNames?.replace(
         /\.js$/,
         '.prod.js',
       ),
@@ -359,7 +373,12 @@ function createMinifiedConfig(/** @type {PackageFormat} */ format) {
         async renderChunk(
           contents,
           _,
-          { format, sourcemap, sourcemapExcludeSources },
+          {
+            format,
+            sourcemap,
+            // @ts-expect-error not supported yet
+            sourcemapExcludeSources,
+          },
         ) {
           const { code, map } = await minifySwc(contents, {
             module: format === 'es',
